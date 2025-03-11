@@ -6,15 +6,22 @@ public class Optionals {
     public static void main(String[] args) {
         User user1 = new User("Ali", "ali@example.com");
         User user2 = new User("Veli", null);
-
+        User user3 = null;
         System.out.println(getUserEmail(user1));
         System.out.println(getUserEmail(user2));
+        System.out.println(getUserName(user3));
     }
 
     public static String getUserEmail(User user) {
         return Optional.ofNullable(user)
                 .map(User::getEmail)
                 .orElse("Email adresi bulunamadı");
+    }
+
+    public static String getUserName(User user) {
+        return Optional.ofNullable(user)
+                .map(u -> "Kullanıcı adı: " + u.getName())
+                .orElse("Kullanıcı bilgisi bulunamadı");
     }
 }
 
@@ -29,5 +36,9 @@ class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getName() {
+        return name;
     }
 }
