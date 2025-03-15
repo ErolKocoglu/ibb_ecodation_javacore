@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class StudentManagementSystem {
     // Field
     // Field
-    private ArrayList<StudentDto> studentDtoList = new ArrayList<>();
+    /*private ArrayList<StudentDto> studentDtoList = new ArrayList<>();
     private int studentCounter = 0;
     private static final String FILE_NAME = "students.txt";
 
@@ -114,5 +114,5 @@ public class StudentManagementSystem {
     // Öğrenci Not Ortalaması Hesapla
     // En Yüksek veya En Düşük Not Alan Öğrenci
     // Öğrenci Sıralaması (Doğum günü)
-    // Console Seçim (Öğrenci Ekle)
+    // Console Seçim (Öğrenci Ekle)*/
 }

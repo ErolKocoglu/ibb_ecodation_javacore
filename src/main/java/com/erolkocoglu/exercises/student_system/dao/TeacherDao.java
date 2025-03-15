@@ -3,6 +3,7 @@ package com.erolkocoglu.exercises.student_system.dao;
 import com.erolkocoglu.exercises.student_system.dto.ETeacherSubject;
 import com.erolkocoglu.exercises.student_system.dto.TeacherDto;
 import com.erolkocoglu.exercises.student_system.exceptions.TeacherNotFoundException;
+import com.erolkocoglu.exercises.student_system.iofiles.FileHandler;
 import com.erolkocoglu.exercises.utils.SpecialColor;
 
 import java.io.*;
@@ -17,76 +18,74 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     private final Scanner scanner = new Scanner(System.in);
     private final List<TeacherDto> teacherList;
     private static final Random random = new Random();
-    private static final String FILE_NAME = "teachers.txt";
+    private int maxId = 0; // En büyük ID'yi tutan değişken
 
     // Inner Class
-    private final FileHandler fileHandler = new FileHandler();
+    private final InnerFileHandler innerClass = new InnerFileHandler();
 
     // Parametresiz Constructor
     public TeacherDao() {
-        // Default
         teacherList = new ArrayList<>();
-        fileHandler.createFileIfNotExists();
-        fileHandler.loadTeachersFromFile();
+        innerClass.createFileIfNotExists();
+        innerClass.readFile();
+        updateMaxId(); // Dosyadan okunan verilerle maxId güncellenir
+    }
+
+    // static
+    static {
+        System.out.println(SpecialColor.RED + " Static: TeacherDao" + SpecialColor.RESET);
     }
 
     /// /////////////////////////////////////////////////////////////
     // INNER CLASS
-    private class FileHandler {
+    private class InnerFileHandler {
+        private final FileHandler fileHandler;
+
+        // Constructor
+        private InnerFileHandler() {
+            this.fileHandler = new FileHandler();
+            fileHandler.setFilePath("teachers.txt");
+        }
+
         // FileIO => Eğer teachers.txt oluşturulmamışsa oluştur
         private void createFileIfNotExists() {
-            File file = new File(FILE_NAME);
-            if (!file.exists()) {
-                try {
-                    file.createNewFile();
-                } catch (IOException e) {
-                    System.err.println("Dosya oluşturulurken hata oluştu: " + e.getMessage());
-                }
-            }
+            fileHandler.createFileIfNotExists();
         }
 
-        // 📌 Öğretmenleri dosyaya kaydetme (BufferedWriter)
-        private void saveToFile() {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_NAME))) {
-                for (TeacherDto teacher : teacherList) {
-                    writer.write(teacherToCsv(teacher) + "\n");
-                }
-            } catch (IOException e) {
-                System.err.println("Dosyaya yazma hatası: " + e.getMessage());
+        // 📌 Öğretmenleri dosyaya kaydetme
+        private void writeFile() {
+            StringBuilder data = new StringBuilder();
+            for (TeacherDto teacher : teacherList) {
+                data.append(teacherToCsv(teacher)).append("\n");
             }
+            fileHandler.writeFile(data.toString());
         }
 
-        // 📌 Öğretmenleri dosyadan yükleme (BufferedReader)
-        private void loadTeachersFromFile() {
+        // 📌 Öğretmenleri dosyadan yükleme
+        private void readFile() {
             teacherList.clear();
-            try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    TeacherDto teacher = csvToTeacher(line);
-                    if (teacher != null) {
-                        teacherList.add(teacher);
-                    }
-                }
-            } catch (IOException e) {
-                System.err.println("Dosya okuma hatası: " + e.getMessage());
-            }
+            fileHandler.readFile(fileHandler.getFilePath());
         }
     }
 
     /// /////////////////////////////////////////////////////////////
+    // 📌 maxId'yi güncelleyen metod
+    private void updateMaxId() {
+        maxId = teacherList.stream()
+                .mapToInt(TeacherDto::id)
+                .max()
+                .orElse(0); // Eğer öğretmen yoksa ID'yi 0 olarak başlat
+    }
+
+    /// /////////////////////////////////////////////////////////////
     // 📌 Öğretmen nesnesini CSV formatına çevirme
-    // Bu metod, bir StudentDto nesnesini virgülle ayrılmış bir metin (CSV) formatına çevirir.
-    // Böylece Öğretmen verileri bir dosyada satır bazlı olarak saklanabilir.
     private String teacherToCsv(TeacherDto teacher) {
         return teacher.id() + "," + teacher.name() + "," + teacher.surname() + "," +
                 teacher.birthDate() + "," + teacher.subject() + "," +
                 teacher.yearsOfExperience() + "," + teacher.isTenured() + "," + teacher.salary();
     }
 
-    // 📌 CSV formatındaki satırı StudentDto nesnesine çevirme
-    // Bu metod, CSV formatındaki bir satırı parçalayarak bir StudentDto nesnesine dönüştürür.
-    // Dosyadan okunan her satır için çağrılır ve veriyi uygun şekilde nesneye aktarır.
-    // 📌 CSV formatındaki satırı StudentDto nesnesine çevirme (Dosyadan okurken)
+    // 📌 CSV formatındaki satırı TeacherDto nesnesine çevirme
     private TeacherDto csvToTeacher(String csvLine) {
         try {
             String[] parts = csvLine.split(",");
@@ -109,7 +108,6 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
                     parts[1],
                     parts[2],
                     birthDate,
-                    //parts[4], //String
                     ETeacherSubject.valueOf(parts[4]),
                     Integer.parseInt(parts[5]),
                     Boolean.parseBoolean(parts[6]),
@@ -125,19 +123,27 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     /// /////////////////////////////////////////////////////////////
     // C-R-U-D
     // Öğretmen Ekle
-    // 📌 Öğretmen Ekleme (Create)
     @Override
     public Optional<TeacherDto> create(TeacherDto teacher) {
+        teacher = new TeacherDto(
+                ++maxId, // Yeni öğretmene maxId'nin 1 fazlasını ata
+                teacher.name(),
+                teacher.surname(),
+                teacher.birthDate(),
+                teacher.subject(),
+                teacher.yearsOfExperience(),
+                teacher.isTenured(),
+                teacher.salary()
+        );
         teacherList.add(teacher);
-        fileHandler.saveToFile();
+        innerClass.writeFile();
         return Optional.of(teacher);
     }
-
 
     // Öğretmen Listesi
     @Override
     public List<TeacherDto> list() {
-        return new ArrayList<>(teacherList); // Liste dışarıdan değiştirilemesin diye kopya veriyoruz.
+        return new ArrayList<>(teacherList);
     }
 
     // FindByName
@@ -145,8 +151,7 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     public Optional<TeacherDto> findByName(String name) {
         return teacherList.stream()
                 .filter(t -> t.name().equalsIgnoreCase(name))
-                .findFirst()
-                .or(() -> Optional.empty());
+                .findFirst();
     }
 
     // FindById
@@ -154,8 +159,7 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     public Optional<TeacherDto> findById(int id) {
         return teacherList.stream()
                 .filter(t -> t.id() == id)
-                .findFirst()
-                .or(() -> Optional.empty());
+                .findFirst();
     }
 
     // Öğretmen Güncelle
@@ -164,11 +168,10 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
         for (int i = 0; i < teacherList.size(); i++) {
             if (teacherList.get(i).id() == id) {
                 teacherList.set(i, updatedTeacher);
-                fileHandler.saveToFile();
+                innerClass.writeFile();
                 return Optional.of(updatedTeacher);
             }
         }
-        //return Optional.empty();
         throw new TeacherNotFoundException("Güncellenecek öğretmen bulunamadı.");
     }
 
@@ -182,10 +185,11 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
                     throw new TeacherNotFoundException(id + " ID'li öğretmen bulunamadı.");
                 }
         );
-        fileHandler.saveToFile();
+        innerClass.writeFile();
         return teacher;
     }
 
+    /// //////////////////////////////////////////////////////////////////////
 
     /// //////////////////////////////////////////////////////////////////////
     // Enum Öğretmen Türü Method
@@ -204,7 +208,7 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     }
 
     /// ///////////////////////////////////////////////////////////////////////
-    // Console Seçim (Öğretmen)
+// Console Seçim (Öğretmen)
     @Override
     public void chooise() {
         while (true) {
@@ -245,9 +249,8 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     }
 
     private void addTeacher() {
-        System.out.print("Öğretmen ID: ");
-        int id = scanner.nextInt();
-        scanner.nextLine();
+        // ID artık manuel girilmiyor, otomatik artıyor
+        int id = ++maxId;
 
         System.out.print("Adı: ");
         String name = scanner.nextLine();
@@ -259,7 +262,6 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
         LocalDate birthDate = LocalDate.parse(scanner.nextLine(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         System.out.print("Uzmanlık Alanı: ");
-        // 📌 Öğrenci türünü seçme
         ETeacherSubject subject = teacherTypeMethod();
 
         System.out.print("Deneyim Yılı: ");
@@ -273,8 +275,9 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
 
         TeacherDto teacher = new TeacherDto(id, name, surname, birthDate, subject, yearsOfExperience, isTenured, salary);
         teacherList.add(teacher);
-        fileHandler.saveToFile();
-        System.out.println("Öğretmen başarıyla eklendi.");
+        innerClass.writeFile();
+
+        System.out.println("Öğretmen başarıyla eklendi. Atanan ID: " + id);
     }
 
     private void listTeachers() {
@@ -287,6 +290,8 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     }
 
     private void searchTeacher() {
+        // Öncelikle Listele
+        listTeachers();
         System.out.print("Aranacak öğretmenin adı: ");
         String name = scanner.nextLine();
 
@@ -296,8 +301,9 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
         );
     }
 
-
     private void updateTeacher() {
+        // Öncelikle Listele
+        listTeachers();
         System.out.print("Güncellenecek öğretmenin ID'si: ");
         int id = scanner.nextInt();
         scanner.nextLine();
@@ -331,6 +337,8 @@ public class TeacherDao implements IDaoGenerics<TeacherDto> {
     }
 
     private void deleteTeacher() {
+        // Öncelikle Listele
+        listTeachers();
         System.out.print("Silinecek öğretmenin ID'si: ");
         int id = scanner.nextInt();
         try {

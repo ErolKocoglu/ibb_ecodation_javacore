@@ -1,5 +1,6 @@
 package com.erolkocoglu.exercises.student_system.dto;
 
+import com.erolkocoglu.exercises.utils.ERole;
 import com.erolkocoglu.exercises.utils.SpecialColor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,21 +10,18 @@ import lombok.ToString;
 import java.io.Serializable;
 import java.time.LocalDate;
 
-@AllArgsConstructor
-@Builder
-@ToString
-@EqualsAndHashCode
 public class StudentDto extends PersonDto implements Serializable {
 
     // Serileştirme
     private static final long serialVersionUID = 556364655645656546L;
 
     // Field
-    private EStudentType eStudentType; // Enum Öğrenci Türü
-    private Double midTerm;      // Vize notu
-    private Double finalTerm;    // Final notu
-    private Double resultTerm;   // Sonuç Notu: (Vize%40 + Final%60)
-    private String status;       // Geçti mi ? Kaldı mı ?
+    private EStudentType eStudentType;
+    private ERole eRole;
+    private Double midTerm;
+    private Double finalTerm;
+    private Double resultTerm;
+    private String status;
 
     // static (Nesne boyunca 1 kere oluşturulur)
     static {
@@ -33,66 +31,75 @@ public class StudentDto extends PersonDto implements Serializable {
     // Parametresiz Constructor
     public StudentDto() {
         super();
+        this.eStudentType = EStudentType.OTHER;
+        this.eRole = ERole.STUDENT;
         this.midTerm = 0.0;
         this.finalTerm = 0.0;
-        this.resultTerm = 0.0;
-        this.resultTerm = 0.0; // varsayılan olarak
-    }
-
-    // toString
-    @Override
-    public String toString() {
-        return super.toString() + "StudentDto{" +
-                "eStudentType=" + eStudentType +
-                ", midTerm=" + midTerm +
-                ", finalTerm=" + finalTerm +
-                ", resultTerm=" + resultTerm +
-                ", status='" + status + '\'' +
-                "} ";
-    }
-
-    @Override
-    public void displayInfo() {
-        System.out.println("Öğrenci " + name + " " + surname + " " + birthDate);
+        this.resultTerm = calculateResult();
+        this.status = determineStatus();
     }
 
     // Parametreli Constructor
-    public StudentDto(Integer id, String name, String surname, LocalDate birthDate, Double midTerm, Double finalTerm, EStudentType eStudentType) {
-        // Üst atadan gelen (StudentDto)
+    public StudentDto(Integer id, String name, String surname, LocalDate birthDate,
+                      Double midTerm, Double finalTerm, EStudentType eStudentType, ERole eRole) {
         super(id, name, surname, birthDate);
-        // this: Local
-        this.midTerm = midTerm;
-        this.finalTerm = finalTerm;
+        this.midTerm = (midTerm != null) ? midTerm : 0.0;
+        this.finalTerm = (finalTerm != null) ? finalTerm : 0.0;
         this.resultTerm = calculateResult();
         this.status = determineStatus();
         this.eStudentType = eStudentType;
+        this.eRole = eRole;
     }
 
     // Metotlar
     // Vize ve Final Calculate
     // **📌 Sonuç Notu Hesaplama (Vize %40 + Final %60)**
     private Double calculateResult() {
-        if (midTerm == null || finalTerm == null)
-            return 0.0;
-        else
-            return (midTerm * 0.4 + finalTerm * 0.6);
+        return ((midTerm != null ? midTerm : 0.0) * 0.4 + (finalTerm != null ? finalTerm : 0.6));
     }
 
     // **📌 Status: Geçme / Kalma**
     private String determineStatus() {
-        if (this.resultTerm == null) return "Bilinmiyor"; // **Null kontrolü ekledik**
         return (this.resultTerm >= 50.0) ? "Geçti" : "Kaldı";
     }
 
+    @Override
+    public String toString() {
+        return "StudentDto{" +
+                "id=" + getId() +
+                ", name='" + getName() + '\'' +
+                ", surname='" + getSurname() + '\'' +
+                ", birthDate=" + getBirthDate() +
+                ", eStudentType=" + eStudentType +
+                ", eRole=" + eRole +
+                ", midTerm=" + midTerm +
+                ", finalTerm=" + finalTerm +
+                ", resultTerm=" + resultTerm +
+                ", status='" + status + '\'' +
+                "} " + super.toString();
+    }
+
+    @Override
+    public void displayInfo() {
+        System.out.println(this.toString());
+    }
 
     /// ///////////////////////////////////////////////////////////////////////////////
     // Getter And Setter
-    public EStudentType geteStudentType() {
+    public EStudentType getEStudentType() {
         return eStudentType;
     }
 
-    public void seteStudentType(EStudentType eStudentType) {
+    public void setEStudentType(EStudentType eStudentType) {
         this.eStudentType = eStudentType;
+    }
+
+    public ERole getERole() {
+        return eRole;
+    }
+
+    public void setERole(ERole eRole) {
+        this.eRole = eRole;
     }
 
     public Double getMidTerm() {
@@ -101,6 +108,8 @@ public class StudentDto extends PersonDto implements Serializable {
 
     public void setMidTerm(Double midTerm) {
         this.midTerm = midTerm;
+        this.resultTerm = calculateResult();
+        this.status = determineStatus();
     }
 
     public Double getFinalTerm() {
@@ -109,25 +118,15 @@ public class StudentDto extends PersonDto implements Serializable {
 
     public void setFinalTerm(Double finalTerm) {
         this.finalTerm = finalTerm;
+        this.resultTerm = calculateResult();
+        this.status = determineStatus();
     }
 
     public Double getResultTerm() {
-        return resultTerm != null ? resultTerm : 0.0;
-    }
-
-    public void setResultTerm(Double resultTerm) {
-        if (resultTerm == null) {
-            this.resultTerm = 0.0;
-        }
-        this.resultTerm = resultTerm;
+        return resultTerm;
     }
 
     public String getStatus() {
         return status;
     }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-} //end Student
+}

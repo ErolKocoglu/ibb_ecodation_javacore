@@ -3,101 +3,55 @@ package com.erolkocoglu.exercises.student_system.dao;
 import com.erolkocoglu.exercises.student_system.dto.EStudentType;
 import com.erolkocoglu.exercises.student_system.dto.StudentDto;
 import com.erolkocoglu.exercises.student_system.exceptions.StudentNotFoundException;
+import com.erolkocoglu.exercises.student_system.iofiles.FileHandler;
+import com.erolkocoglu.exercises.utils.ERole;
 import com.erolkocoglu.exercises.utils.SpecialColor;
 
-import java.io.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-// Annotation
-
-
 // Öğrenci Yönetim Sistemi
 public class StudentDao implements IDaoGenerics<StudentDto> {
 
     // Field
-    private ArrayList<StudentDto> studentDtoList ;
-    // ID artık tüm sınıflar tarafından erişilebilir olacak
-    int maxId=0;
-    private static final String FILE_NAME = "students.txt";
+    // Student List
+    private final List<StudentDto> studentDtoList;
+    // File dosyasına eklenen en büyük ID alıp yeni eklenecek file için 1 artır
+    int maxId = 0;
+
+    // Eklenen dosya adı
+    //private static final String FILE_NAME = "students.txt";
 
     // **📌 Scanner Nesnesini En Üste Tanımladık**
     private final Scanner scanner = new Scanner(System.in);
 
+    // FileHandler
+    private FileHandler fileHandler;
+    private String filePath;
+
+    ///////////////////////////////////////////////////////////////////////
     // static
     static {
-
+        System.out.println(SpecialColor.RED + " Static: StudentDao" + SpecialColor.RESET);
     }
 
     // Parametresiz Constructor
     public StudentDao() {
+        // FileHandler
+        this.fileHandler = new FileHandler();
+        this.fileHandler.setFilePath("students.txt");
+
+        // null pointer almamak için
         studentDtoList = new ArrayList<>();
 
         // Eğer students.txt yoksa otomatik oluştur
-        createFileIfNotExists();
+        this.fileHandler.createFileIfNotExists();
 
         // Program başlarken Öğrenci Listesini hemen yüklesin
-        loadStudentsListFromFile();
-    }
-
-    /// /////////////////////////////////////////////////////////////
-    // FileIO => Eğer students.txt oluşturulmamışsa oluştur
-    // 📌 Eğer dosya yoksa oluşturur
-    private void createFileIfNotExists() {
-        File file = new File(FILE_NAME);
-        if (!file.exists()) {
-            try {
-                if (file.createNewFile()) {
-                    System.out.println(SpecialColor.YELLOW + FILE_NAME + " oluşturuldu." + SpecialColor.RESET);
-                }
-            } catch (IOException e) {
-                System.out.println(SpecialColor.RED + "Dosya oluşturulurken hata oluştu!" + SpecialColor.RESET);
-                e.printStackTrace();
-            }
-        }
-    }
-
-    // 📌 Öğrencileri dosyaya kaydetme (BufferedWriter)
-    private void saveToFile() {
-        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for (StudentDto student : studentDtoList) {
-                bufferedWriter.write(studentToCsv(student) + "\n");
-            }
-            System.out.println(SpecialColor.GREEN + "Öğrenciler dosyaya kaydedildi." + SpecialColor.RESET);
-        } catch (IOException e) {
-            System.out.println(SpecialColor.RED + "Dosya kaydetme hatası!" + SpecialColor.RESET);
-            e.printStackTrace();
-        }
-    }
-
-    // 📌 Öğrencileri dosyadan yükleme (BufferedReader)
-    private void loadStudentsListFromFile() {
-        // Listedeki verileri temizle
-        studentDtoList.clear();
-        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                StudentDto student = csvToStudent(line);
-                if (student != null) {
-                    studentDtoList.add(student);
-                }
-            }
-            //studentCounter = studentDtoList.size();
-            // ✅ Öğrenciler içindeki en büyük ID'yi bul
-            /*
-            studentCounter = studentDtoList.stream()
-                    .mapToInt(StudentDto::getId)
-                    .max()
-                    .orElse(0); // Eğer öğrenci yoksa sıfır başlat
-            */
-
-        } catch (IOException e) {
-            System.out.println(SpecialColor.RED + "Dosya okuma hatası!" + SpecialColor.RESET);
-            e.printStackTrace();
-        }
+        this.fileHandler.readFile(this.fileHandler.getFilePath());
     }
 
     /// /////////////////////////////////////////////////////////////
@@ -113,8 +67,8 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
                         student.getFinalTerm() + "," +   // Öğrenci final notunu ekler
                         student.getResultTerm() + "," +  // Öğrenci sonuç notunu ekler
                         student.getStatus() + "," +      // Öğrenci geçti/kaldı notunu ekler
-                        student.getBirthDate() + "," +   // Öğrenci doğum tarihini ekler
-                        student.geteStudentType();       // Öğrencinin eğitim türünü (Lisans, Yüksek Lisans vb.) ekler
+                        student.getBirthDate();   // Öğrenci doğum tarihini ekler
+        //student.geteStudentType();       // Öğrencinin eğitim türünü (Lisans, Yüksek Lisans vb.) ekler
     }
 
     // 📌 CSV formatındaki satırı StudentDto nesnesine çevirme
@@ -135,12 +89,14 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
                     LocalDate.parse(parts[3]),    // Doğum tarihini LocalDate formatına çevirir
                     Double.parseDouble(parts[4]), // Vize notunu double olarak dönüştürür
                     Double.parseDouble(parts[5]), // Final notunu double olarak dönüştürür
-                    EStudentType.valueOf(parts[8]) // Öğrencinin eğitim türünü (Enum) çevirir
+                    EStudentType.valueOf(parts[8]),
+                    ERole.valueOf(parts[9]) // Öğrencinin eğitim türünü (Enum) çevirir
             );
-
+//  0           1               2             3                    4                  5                  8                        9
+// Integer id, String name, String surname, LocalDate birthDate, Double midTerm, Double finalTerm, EStudentType eStudentType, ERole eRole
             // **Geçti/Kaldı durumu CSV'den okunduğu gibi öğrenci nesnesine eklenir**
-            student.setResultTerm(Double.parseDouble(parts[6])); // **Sonuç notunu ayarla**
-            student.setStatus(parts[7]); // **Geçti/Kaldı durumunu CSV'den al**
+            //student.setResultTerm(Double.parseDouble(parts[6])); // **Sonuç notunu ayarla**
+            //student.setStatus(parts[7]); // **Geçti/Kaldı durumunu CSV'den al**
 
             return student;
         } catch (Exception e) {
@@ -149,7 +105,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         }
     }
 
-    /// /////////////////////////////////////////////////////////////
+    /// ////////////////////////////////////////////////////////////
 
     // C-R-U-D
     // Öğrenci Ekle
@@ -169,14 +125,14 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
                     .orElse(0); // ;eğer öğrenci yoksa Sıfırdan başlat
 
             // Yeni Öğrenciyi ID'si En büyük olan ID'nin 1 fazlası
-            studentDto.setId(maxId+1);
+            studentDto.setId(maxId + 1);
 
             // ID'yi artırıp nesneye atıyoruz
             // 📌 **ID artık public static olduğu için her sınıftan erişilebilir!**
             studentDtoList.add(studentDto);
-            saveToFile();
+            this.fileHandler.writeFile(this.fileHandler.getFilePath());
 
-            System.out.println(studentDto+ SpecialColor.GREEN + "✅ Öğrenci başarıyla eklendi!" + SpecialColor.RESET);
+            System.out.println(studentDto + SpecialColor.GREEN + "✅ Öğrenci başarıyla eklendi!" + SpecialColor.RESET);
             return Optional.of(studentDto);
 
         } catch (IllegalArgumentException e) {
@@ -212,21 +168,22 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
             throw new IllegalArgumentException("Doğum tarihi bugünden büyük olamaz.");
         }
 
-        if (studentDto.geteStudentType() == null) {
+      /*  if (studentDto.geteStudentType() == null) {
             throw new IllegalArgumentException("Öğrenci türü boş olamaz.");
-        }
+        }*/
     }
 
+    /// ////// LIST //////////
     // Öğrenci Listesi
     @Override
     @SuppressWarnings("unchecked") // Derleyici uyarılarını bastırmak için kullanılır.
     //@Cacheable
-    public ArrayList<StudentDto> list() {
+    public List<StudentDto> list() {
         // Öğrenci Yoksa
         if (studentDtoList.isEmpty()) {
-            throw new StudentNotFoundException("Öğrenci Yoktur");
+            throw new StudentNotFoundException("\uD83D\uDCCC Öğrenci Yoktur");
         } else {
-            System.out.println(SpecialColor.BLUE + " Öğrenci Listesi" + SpecialColor.RESET);
+            System.out.println(SpecialColor.BLUE + "Öğrenci Listesi" + SpecialColor.RESET);
             // Listeyi Göster (1.YOL)
             studentDtoList.forEach(System.out::println);
             // Listeyi Göster (2.YOL)
@@ -243,6 +200,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         return studentDtoList;
     }
 
+    /// ////// SEARCH //////////
     // Öğrenci Ara
     @Override
     public Optional<StudentDto> findByName(String name) {
@@ -289,33 +247,36 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
                 .findFirst();
     }
 
+    /// ////// UPDATE //////////
     // Öğrenci Güncelle
     @Override
     public Optional<StudentDto> update(int id, StudentDto studentDto) {
-        try{
+        try {
             for (StudentDto temp : studentDtoList) {
                 //if (temp.getId() == id) {
-                if (temp.getId() .equals(id)) {
+                if (temp.getId().equals(id)) {
                     temp.setName(studentDto.getName());
                     temp.setSurname(studentDto.getSurname());
                     temp.setBirthDate(studentDto.getBirthDate());
                     temp.setMidTerm(studentDto.getMidTerm());
                     temp.setFinalTerm(studentDto.getFinalTerm());
-                    temp.setResultTerm(temp.getMidTerm() * 0.4 + temp.getFinalTerm() * 0.6);
-                    temp.seteStudentType(studentDto.geteStudentType());
+                    //temp.setResultTerm(temp.getMidTerm() * 0.4 + temp.getFinalTerm() * 0.6);
+                    //temp.seteStudentType(studentDto.geteStudentType());
                     // Güncellenmiş Öğrenci Bilgileri
                     System.out.println(SpecialColor.BLUE + temp + " Öğrenci Bilgileri Güncellendi" + SpecialColor.RESET);
                     // Dosyaya kaydet
-                    saveToFile();
+                    this.fileHandler.writeFile(this.fileHandler.getFilePath());
                     return Optional.of(temp); // Bir veri olabilir 😊
                 }
-            }} catch (Exception e){
+            }
+        } catch (Exception e) {
             e.printStackTrace();
             throw new StudentNotFoundException("Öğrenci bulunamadı.");
         }
         return Optional.empty(); // Boş eleman olabilir 😒
     }
 
+    /// ////// DELETE //////////
     // Öğrenci Sil
     @Override
     public Optional<StudentDto> delete(int id) {
@@ -326,7 +287,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         if (removed) {
             System.out.println(SpecialColor.BLUE + "Öğrenci Silindi" + SpecialColor.RESET);
             // Silinen Öğrenciyi dosyaya kaydet
-            saveToFile();
+            this.fileHandler.writeFile(this.fileHandler.getFilePath());
             return Optional.empty();
         } else {
             System.out.println(SpecialColor.RED + "Öğrenci Silinmedi" + SpecialColor.RESET);
@@ -335,23 +296,24 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         */
 
         // 2.YOL
-        Optional<StudentDto> studentToDelete= findById(id);
-        if(studentToDelete.isPresent()) {
+        Optional<StudentDto> studentToDelete = findById(id);
+        if (studentToDelete.isPresent()) {
             studentDtoList.remove(studentToDelete.get());
             System.out.println(SpecialColor.BLUE + "Öğrenci Silindi" + SpecialColor.RESET);
             // Silinen Öğrenciyi dosyaya kaydet
-            saveToFile();
+            this.fileHandler.writeFile(this.fileHandler.getFilePath());
             return studentToDelete;
-        }else{
+        } else {
             System.out.println(SpecialColor.RED + "Öğrenci Silinmedi" + SpecialColor.RESET);
             throw new StudentNotFoundException("Öğrenci silinemedi, ID bulunamadı.");
         }
     }
 
-    /// //////////////////////////////////////////////////////////////////////
+    /// ////////////////////////////////////////////////////////////////////
+    /// ////// STUDENT TYPE //////////
     // Enum Öğrenci Türü Method
     public EStudentType studentTypeMethod() {
-        System.out.println("\n"+SpecialColor.GREEN+"Öğrenci türünü seçiniz.\n1-)Lisans\n2-)Yüksek Lisans\n3-)Doktora"+SpecialColor.RESET);
+        System.out.println("\n" + SpecialColor.GREEN + "Öğrenci türünü seçiniz.\n1-)Lisans\n2-)Yüksek Lisans\n3-)Doktora" + SpecialColor.RESET);
         int typeChooise = scanner.nextInt();
         EStudentType swichCaseStudent = switch (typeChooise) {
             case 1 -> EStudentType.UNDERGRADUATE;
@@ -368,8 +330,8 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
     public void chooise() {
         while (true) {
             try {
-                System.out.println("\n"+SpecialColor.BLUE+"===== ÖĞRENCİ YÖNETİM SİSTEMİ ====="+SpecialColor.RESET);
-                System.out.println(SpecialColor.YELLOW+"1. Öğrenci Ekle");
+                System.out.println("\n" + SpecialColor.BLUE + "===== ÖĞRENCİ YÖNETİM SİSTEMİ =====" + SpecialColor.RESET);
+                System.out.println(SpecialColor.YELLOW + "1. Öğrenci Ekle");
                 System.out.println("2. Öğrenci Listele");
                 System.out.println("3. Öğrenci Ara");
                 System.out.println("4. Öğrenci Güncelle");
@@ -380,8 +342,8 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
                 System.out.println("9. En Yüksek & En Düşük Not Alan Öğrenci");
                 System.out.println("10. Öğrencileri Doğum Tarihine Göre Sırala");
                 System.out.println("11. Öğrenci Geçti/Kaldı Durumunu göster");
-                System.out.println("12. Çıkış"+SpecialColor.RESET);
-                System.out.print("\n"+SpecialColor.PURPLE+"Seçiminizi yapınız: "+SpecialColor.RESET);
+                System.out.println("12. Çıkış" + SpecialColor.RESET);
+                System.out.print("\n" + SpecialColor.PURPLE + "Seçiminizi yapınız: " + SpecialColor.RESET);
 
                 int choice = scanner.nextInt();
                 scanner.nextLine(); // Boşluğu temizleme
@@ -490,7 +452,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
 
                 // 📌 Öğrenci nesnesini oluştur
                 // Integer id, String name, String surname, LocalDate birthDate,Double midTerm, Double finalTerm,EStudentType eStudentType
-                StudentDto newStudent = new StudentDto(maxId, name, surname,birthDate, midTerm, finalTerm, studentType);
+                StudentDto newStudent = new StudentDto(maxId, name, surname, birthDate, midTerm, finalTerm, studentType, ERole.STUDENT);
                 Optional<StudentDto> createdStudent = create(newStudent);
 
                 if (createdStudent != null) {
@@ -550,7 +512,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         double finalTermUpdate = scanner.nextDouble();
 
         //  // Integer id, String name, String surname, LocalDate birthDate,Double midTerm, Double finalTerm,EStudentType eStudentType
-        StudentDto studentUpdate = new StudentDto(id, nameUpdate, surnameUpdate,birthDateUpdate, midTermUpdate, finalTermUpdate, studentTypeMethod());
+        StudentDto studentUpdate = new StudentDto(id, nameUpdate, surnameUpdate, birthDateUpdate, midTermUpdate, finalTermUpdate, studentTypeMethod(), ERole.STUDENT);
         try {
             update(id, studentUpdate);
             System.out.println("Öğrenci başarıyla güncellendi.");
@@ -581,6 +543,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
     }
 
     // Rastgele Öğrenci
+
     /// Student Random
     public void chooiseRandomStudent() {
         if (!studentDtoList.isEmpty()) {
@@ -592,6 +555,7 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
     }
 
     // Öğrenci Not Ortalaması Hesapla
+
     /// Öğrenci Not Ortalaması Hesapla
     public void chooiseStudentNoteAverage() {
         if (!studentDtoList.isEmpty()) {
@@ -645,6 +609,12 @@ public class StudentDao implements IDaoGenerics<StudentDto> {
         System.out.println("Sistemden çıkılıyor...");
         scanner.close();
         return;
+    }
+
+    // TEST
+    public static void main(String[] args) {
+        StudentDao studentDao = new StudentDao();
+        studentDao.chooise();
     }
 
 } // end class
