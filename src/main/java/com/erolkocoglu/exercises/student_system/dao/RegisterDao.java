@@ -1,6 +1,7 @@
 package com.erolkocoglu.exercises.student_system.dao;
 
 import com.erolkocoglu.exercises.student_system.dto.RegisterDto;
+import com.erolkocoglu.exercises.student_system.exceptions.RegisterNotFoundException;
 import com.erolkocoglu.exercises.student_system.iofiles.FileHandler;
 import com.erolkocoglu.exercises.utils.SpecialColor;
 
@@ -43,6 +44,19 @@ public class RegisterDao implements IDaoGenerics<RegisterDto> {
 
 
     /// ///////////////////////////////////////////////////////////////////////////////////////////
+    // Random Generate New Id
+    // generateNewId() bu metot registerList adlı koleksiyonumzda bulunan ID değerinin en büyüğünü bulsun
+    // ve buna 1 eklesin ve yeni bir ID döndürsün
+    // ID her seferinde 1 artır.
+    private int generateNewId() {
+        return registerDtoList
+                .stream() // Java Stream API kullanarak liste üzerindeki işlemleri bir akış(stream) halinde
+                .mapToInt(RegisterDto::getId) //IntStream
+                .max()
+                .orElse(0) + 1; // Liste boşsa 0 göndür ve yeni ID olarak en büyük değere 1 eklesin
+    }
+
+    /// ///////////////////////////////////////////////////////////////////////////////////////////
     // 📌 Register nesnesini CSV formatına çevirme
     // Bu metod, bir RegisterDto nesnesini virgülle ayrılmış bir metin (CSV) formatına çevirir.
     // Böylece Register verileri bir dosyada satır bazlı olarak saklanabilir.
@@ -74,44 +88,79 @@ public class RegisterDao implements IDaoGenerics<RegisterDto> {
         }
     }
 
-    // Random Generate New Id
-    private int generateNewId() {
-        return 0;
-    }
 
     /// ///////////////////////////////////////////////////////////////
+    /// CREATE (REGISTER)
     @Override
     public Optional<RegisterDto> create(RegisterDto registerDto) {
-        return Optional.empty();
+        registerDtoList.add(registerDto);
+        this.fileHandler.writeFile(this.fileHandler.getFilePath());
+        return Optional.of(registerDto);
     }
 
+    /// LIST (REGISTER)
     @Override
     public List<RegisterDto> list() {
-        return List.of();
+        if (registerDtoList.isEmpty()) {
+            throw new RegisterNotFoundException(SpecialColor.BLUE + "Kayıtlı kullanıcı bulunamadı" + SpecialColor.RESET);
+        }
+        return new ArrayList<>(registerDtoList);
     }
 
+
+    /// FIND BY NICKNAME (REGISTER)
     @Override
-    public Optional<RegisterDto> findByName(String name) {
-        return Optional.empty();
+    public Optional<RegisterDto> findByName(String nickName) {
+        return registerDtoList
+                .stream()
+                .filter(s -> s.getNickname().equalsIgnoreCase(nickName))
+                .findFirst();
     }
 
+    /// FIND BY EMAIL (REGISTER)
+    public Optional<RegisterDto> findByEmail(String email) {
+        return registerDtoList
+                .stream()
+                .filter(s -> s.getEmailAddress().equalsIgnoreCase(email))
+                .findFirst();
+    }
+
+    /// FIND BY ID (REGISTER)
     @Override
     public Optional<RegisterDto> findById(int id) {
-        return Optional.empty();
+        return registerDtoList
+                .stream()
+                .filter(s -> s.getId() == id)
+                .findFirst();
     }
 
+    /// UPDATE (REGISTER)
     @Override
     public Optional<RegisterDto> update(int id, RegisterDto registerDto) {
-        return Optional.empty();
+        if (registerDto != null) {
+            for (int i = 0; i < registerDtoList.size(); i++) {
+                if (registerDtoList.get(i).getId() == id) {
+                    registerDtoList.set(i, registerDto);
+                    this.fileHandler.writeFile(this.fileHandler.getFilePath());
+
+                }
+            }
+        }
+        throw new RegisterNotFoundException("Güncellenecek Kayıt bulunamadı");
+        //return Optional.of(registerDto);
     }
 
+    /// DELETE (REGISTER)
     @Override
     public Optional<RegisterDto> delete(int id) {
         return Optional.empty();
     }
 
+    /// //////////////////////////////////////////////////////////////
+
+    /// CHOOISE (REGISTER)
     @Override
     public void chooise() {
 
     }
-}
+} //end class
